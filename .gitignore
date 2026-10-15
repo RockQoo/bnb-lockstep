@@ -1,0 +1,11 @@
+bin/
+obj/
+.vs/
+*.user
+
+# Godot
+client/.godot/
+client/*.translation
+
+# 실행 중 생성되는 리플레이
+replays/

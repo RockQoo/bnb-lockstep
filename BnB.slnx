@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BnB.Bot/BnB.Bot.csproj" />
+    <Project Path="src/BnB.Net/BnB.Net.csproj" />
+    <Project Path="src/BnB.Server/BnB.Server.csproj" />
+    <Project Path="src/BnB.Sim/BnB.Sim.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/BnB.Sim.Tests/BnB.Sim.Tests.csproj" />
+  </Folder>
+</Solution>

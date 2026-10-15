@@ -1,0 +1,24 @@
+; Engine configuration file.
+
+config_version=5
+
+[application]
+
+config/name="BnB Client"
+run/main_scene="res://Main.tscn"
+config/features=PackedStringArray("4.7", "C#", "GL Compatibility")
+
+[display]
+
+window/size/viewport_width=1000
+window/size/viewport_height=640
+window/stretch/mode="canvas_items"
+
+[dotnet]
+
+project/assembly_name="BnB.Client"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

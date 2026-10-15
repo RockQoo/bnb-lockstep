@@ -1,0 +1,21 @@
+<Project Sdk="Godot.NET.Sdk/4.7.2">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <Nullable>enable</Nullable>
+    <RootNamespace>BnB.Client</RootNamespace>
+  </PropertyGroup>
+
+  <!-- Sim은 Godot을 모른다. 클라는 Sim을 참조해서 같은 규칙으로 진행하고, 화면만 그린다. -->
+  <ItemGroup>
+    <ProjectReference Include="..\src\BnB.Sim\BnB.Sim.csproj" />
+    <ProjectReference Include="..\src\BnB.Net\BnB.Net.csproj" />
+  </ItemGroup>
+
+  <!-- autoplay 옵션: 봇 AI가 대신 입력 (테스트·관전용) -->
+  <ItemGroup>
+    <Compile Include="..\src\BnB.Bot\BotBrain.cs" Link="BotBrain.cs" />
+  </ItemGroup>
+
+</Project>
