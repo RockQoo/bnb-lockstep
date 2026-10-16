@@ -9,7 +9,7 @@
 | ![live](docs/screenshots/live.png) | ![replay end](docs/screenshots/replay-end.png) |
 
 - 맵: 크레이지아케이드 **해적 14** (15×13, [원본 캡처](docs/pirate14-reference.png)를 칸 단위로 옮김)
-- 언어·런타임: C# 12 / .NET 8 (SDK 10으로 빌드)
+- 언어·런타임: C# 14 / .NET 10
 - 클라: Godot 4.7.2 (.NET) — **렌더링과 입력만** 담당
 - 서버·봇·테스트: 순수 C# 콘솔
 
@@ -56,6 +56,64 @@ tests     : Sim 단위 테스트 (xUnit)
 - Sim은 Godot을 참조하지 않는다. Godot의 `Vector2`(float)가 Sim에 들어오면 PC마다 결과가 달라질 수 있다.
   정수 좌표 → float 변환은 렌더러에서만 한다 ([BoardRenderer.cs](client/BoardRenderer.cs)).
 - Godot은 Sim 상태를 **읽어서 그리기만** 한다. 상태를 바꾸는 건 서버가 확정한 입력뿐이다.
+
+## Godot 클라이언트 동작
+
+씬은 `Main.tscn` 하나, 노드는 `Node2D` 하나([Main.cs](client/Main.cs))뿐이다. 스프라이트·텍스처·물리 엔진은 쓰지 않는다.
+Godot이 하는 일은 **창, 키 입력, 매 프레임 호출(`_Process`), 그리기(`_Draw`)** 네 가지다.
+
+**프로젝트 연결**: [BnB.Client.csproj](client/BnB.Client.csproj)가 `BnB.Sim`, `BnB.Net`을 `ProjectReference`로 참조한다.
+서버와 **같은 Sim 코드**를 Godot 안에서 그대로 돌린다. 봇 AI(`BotBrain.cs`)는 `--autoplay` 옵션용으로 소스만 링크한다.
+
+**단계 (`Phase`)**
+
+```
+Connecting ─접속─▶ Lobby ─Start─▶ Live ─GameOver─▶ Replay ─끝─▶ Finished ─Enter─▶ Connecting
+                   (인원 대기)    (Frame마다 1틱)    (방금 판 재생)  (해시 MATCH 표시)
+```
+
+**한 프레임(`_Process`)에서 하는 일**
+
+| 단계 | 처리 |
+|---|---|
+| Connecting | `Task.Run`으로 TCP 접속. 실패하면 1초 뒤 재시도. 접속되면 `Hello(name)` 전송 |
+| Lobby / Live | 받은 패킷 처리 → (Live면) 내 입력 전송 |
+| Replay | 경과 시간을 누적해 1/30초마다 기록된 Frame으로 한 틱씩 진행 (배속 x1/x2/x4) |
+| 공통 | `QueueRedraw()` → 이번 프레임에 `_Draw()` 호출 |
+
+**네트워크와 스레드**: 수신은 `Connection`의 백그라운드 스레드가 하고, 받은 패킷은 `ConcurrentQueue`에 넣는다.
+메인 스레드(`_Process`)가 큐를 비우면서 처리하므로 **Sim과 Godot 노드는 메인 스레드에서만** 만진다.
+
+**패킷 처리 (`PollNetwork`)**
+
+- `Welcome`: 내 플레이어 번호, 인원, 맵, **시드**를 받는다
+- `Start`: 받은 시드로 `World`를 만든다. 서버·다른 클라와 같은 초기 상태가 된다
+- `Frame(tick, inputs[])`: 기록(`_recorded`)에 넣고 Sim을 한 틱 진행. 30틱마다 `Hash` 보고
+- `Desync`: 화면의 Desync 숫자만 올린다
+- `GameOver`: 연결을 닫고, 기록한 Frame으로 `Replay`를 만들어 `user://replays/`에 저장한 뒤 바로 재생
+
+**입력 (`_UnhandledInput` → `SendInput`)**
+
+- 방향키는 누른 순서대로 리스트에 쌓고 **가장 최근 키**를 현재 방향으로 쓴다. 떼면 리스트에서 뺀다
+- 물풍선·바늘·다트는 누른 순간 비트를 OR로 모아 두었다가(`_pendingButtons`) 다음 전송 때 한 번에 보낸다
+- 방향이 바뀌었거나 버튼이 눌렸을 때만 `Input` 1바이트를 보낸다. 내 캐릭터도 **보낸 순간 움직이지 않고**, 서버의 Frame이 돌아와야 움직인다
+
+**그리기 (`_Draw` + [BoardRenderer.cs](client/BoardRenderer.cs))**
+
+- `DrawRect`, `DrawCircle`, `DrawLine`, `DrawString` 같은 2D 즉시 그리기만 쓴다. 매 프레임 바닥 → 물줄기 → 아이템 → 지형(기둥·블록·상자) → 물풍선 → 다트 → 캐릭터 순으로 전부 다시 그린다
+- Sim 정수 좌표(한 칸 = 1000)를 픽셀(한 칸 = 44px)로 바꾸는 곳은 `BoardRenderer.ToScreen` 한 곳뿐이다
+- Sim은 30Hz, 화면은 60fps 이상이라 캐릭터 위치는 직전 틱과 현재 틱 사이를 `Lerp`로 보간한다. 보간 값은 화면에만 쓰고 Sim으로 돌려보내지 않는다
+- 오른쪽 HUD에 Tick, 남은 시간, 현재 해시, 시드, Desync 수, 플레이어별 상태·능력치를 표시한다
+
+**실행 인자** (`Godot.exe --path client -- 인자`)
+
+| 인자 | 용도 |
+|---|---|
+| `--name`, `--host`, `--port` | 접속 정보 (기본 127.0.0.1) |
+| `--replay 파일` | 접속하지 않고 리플레이 파일만 재생 |
+| `--autoplay` | 봇 AI가 대신 입력 (통합 테스트용) |
+| `--replay-speed N` | 리플레이 배속 |
+| `--screenshot 경로`, `--shot-delay 초`, `--quit-after-replay` | 화면을 PNG로 저장하고 종료 (README 스크린샷·자동 검증용) |
 
 ## 락스텝 흐름
 

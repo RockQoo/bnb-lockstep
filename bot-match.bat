@@ -7,10 +7,10 @@ if "%GAMES%"=="" set GAMES=3
 
 call build.bat || goto :fail
 
-start "BnB Server" dotnet src\BnB.Server\bin\Debug\net8.0\BnB.Server.dll --players 2 --games %GAMES% --port 7799
+start "BnB Server" dotnet src\BnB.Server\bin\Debug\net10.0\BnB.Server.dll --players 2 --games %GAMES% --port 7799
 timeout /t 1 /nobreak >nul
-start "BnB Bot A" dotnet src\BnB.Bot\bin\Debug\net8.0\BnB.Bot.dll --name Alpha --games %GAMES% --port 7799
-dotnet src\BnB.Bot\bin\Debug\net8.0\BnB.Bot.dll --name Beta --games %GAMES% --port 7799
+start "BnB Bot A" dotnet src\BnB.Bot\bin\Debug\net10.0\BnB.Bot.dll --name Alpha --games %GAMES% --port 7799
+dotnet src\BnB.Bot\bin\Debug\net10.0\BnB.Bot.dll --name Beta --games %GAMES% --port 7799
 pause
 exit /b 0
 

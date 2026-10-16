@@ -6,7 +6,7 @@ if not defined GODOT set GODOT=Godot_v4.7.2-stable_mono_win64.exe
 
 call build.bat || goto :fail
 
-start "BnB Server" dotnet src\BnB.Server\bin\Debug\net8.0\BnB.Server.dll --players 2
+start "BnB Server" dotnet src\BnB.Server\bin\Debug\net10.0\BnB.Server.dll --players 2
 timeout /t 1 /nobreak >nul
 start "" "%GODOT%" --path client -- --name Player1
 timeout /t 1 /nobreak >nul
